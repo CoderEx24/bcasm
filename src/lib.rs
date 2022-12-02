@@ -43,23 +43,7 @@ pub fn parse_value(str_val: &str) -> Result<u16, &str> {
 /// # parse_asm
 /// reads an assembly file, and produces a symbol table (represented as a hashmap)
 /// and a the code as a vector
-pub fn parse_asm(filepath: &str) -> Result<ParsedAsm, String> {
-    use std::fs::{ read_to_string, metadata };
-
-    let metadata = metadata(filepath).expect(
-        format!("[ERROR] failed to get metadata of {}", filepath).as_str()
-    );
-
-    if !metadata.is_file() {
-        return Err(
-            format!("[ERROR] {} is not a file", filepath)
-        );
-    }
-
-    let contents = read_to_string(filepath).expect(
-        format!("[ERROR] couldn't read {}", filepath).as_str()
-    );
-
+pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
     let mut data = HashMap::new();
     let mut code = Vec::new();
     let mut is_data = true;
@@ -199,9 +183,7 @@ mod tests {
 
     #[test]
     fn test_parse_asm() {
-        use std::fs::write;
-        
-        let content = 
+        let contents = 
             "data:    \n \
                 a 1   \n \
                 b 2   \n \
@@ -211,8 +193,7 @@ mod tests {
                 out   \n \
                 hlt";
 
-        write("./test.asm", content);
-        let (data, code) = parse_asm("./test.asm").unwrap();
+        let (data, code) = parse_asm(contents.into()).unwrap();
 
         assert_eq!(2, data.len());
         assert_eq!(4, code.len());
@@ -230,20 +211,19 @@ mod tests {
 
     #[test]
     fn test_produce_machine_code() {
-        use std::fs::write;
-        
-        let content = 
-            "data:    \n \
-                a 1   \n \
-                b 2   \n \
-             text:    \n \
-                lda a \n \
-                add b \n \
-                out   \n \
-                hlt";
+        let data = HashMap::from([
+            ("a".to_string(), 1),
+            ("b".to_string(), 2)
+        ]);
 
-        write("./test.asm", content);
-        let machine_code = produce_machine_code(parse_asm("./test.asm").unwrap()).unwrap();
+        let code = vec![
+            "lda a".to_string(),
+            "add b".to_string(),
+            "out".to_string(),
+            "hlt".to_string()
+        ];
+
+        let machine_code = produce_machine_code((data, code)).unwrap();
 
         assert_eq!(7, machine_code.len());
 
