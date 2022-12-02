@@ -4,7 +4,7 @@ type ParsedAsm = (HashMap<String, u16>, Vec<String>);
 
 /// # parse_value
 /// parses a string that contains a numerical value, and returns it as a 2-byte number
-pub fn parse_value(str_val: &str) -> Result<u16, &str> {
+pub fn parse_value(str_val: &str) -> Result<u16, Box<dyn std::error::Error>> {
     use std::u16;
     
     if str_val.starts_with('\'') && str_val.ends_with('\'') {
@@ -12,32 +12,35 @@ pub fn parse_value(str_val: &str) -> Result<u16, &str> {
 
     }
 
-    let mut value: u16 = 0;
 
     let val_lower = str_val.to_ascii_lowercase();
     let val = val_lower.as_str();
+    
+    Ok (
 
     if val.len() > 2 && &val[0..2] == "0x" {
         let hex_value = &val[2..].to_uppercase();
 
-        value = u16::from_str_radix(hex_value, 16).expect(
-            format!("[ERROR] failed to parse {}", val).as_str()
-        );
+        u16::from_str_radix(hex_value, 16)?
+           // .expect(
+           // format!("[ERROR] failed to parse {}", val).as_str()
+        //)
 
     } else if val.len() > 1 && &val[0..1] == "0" {
         let octal_value = &val[1..];
         
-        value = u16::from_str_radix(octal_value, 8).expect(
-            format!("[ERROR] failed to parse {}", val).as_str()
-        );
+        u16::from_str_radix(octal_value, 8)?
+           // .expect(
+           //  format!("[ERROR] failed to parse {}", val).as_str()
+        //)
 
     } else {
-        value = val.parse().expect(
-            format!("[ERROR] failed to parse {}", val).as_str()
-        );
-    }
-
-    Ok(value)
+        val.parse()?
+           // .expect(
+           // format!("[ERROR] failed to parse {}", val).as_str()
+        //)
+   }
+    )
 }
 
 /// # parse_asm
@@ -174,10 +177,10 @@ mod tests {
 
     #[test]
     fn test_parse_value() {
-        assert_eq!(Ok(12), parse_value("12"));
-        assert_eq!(Ok(12), parse_value("014"));
-        assert_eq!(Ok(12), parse_value("0xC"));
-        assert_eq!(Ok(12), parse_value("0xc"));
+        assert_eq!(12, parse_value( "12").unwrap());
+        assert_eq!(12, parse_value("014").unwrap());
+        assert_eq!(12, parse_value("0xC").unwrap());
+        assert_eq!(12, parse_value("0xc").unwrap());
         
     }
 
