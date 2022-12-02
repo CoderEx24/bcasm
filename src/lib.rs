@@ -38,16 +38,16 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
     for (i, line) in contents
         .to_ascii_lowercase()
         .trim()
-        .split('\n')
+        .lines()
         .into_iter()
         .filter(|v| !v.is_empty())
         .map(|v| v.trim_start().trim_end())
         .enumerate()
     {
-        if line.trim_end_matches(':').to_lowercase() == "data" {
+        if line.to_ascii_lowercase() == "data:" {
             is_data = true;
             continue;
-        } else if line.trim_end_matches(':').to_lowercase() == "text" {
+        } else if line.to_ascii_lowercase() == "text:" {
             is_data = false;
             continue;
         } else if line.ends_with(':') {
@@ -57,12 +57,12 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
         }
 
         if is_data {
-            let parts: Vec<&str> = line.split(' ').collect();
+            let parts: Vec<&str> = line.split_whitespace().collect();
             let label = parts[0].trim();
             let value = parse_value(parts[1]).unwrap();
 
             data.insert(String::from(label), value);
-        } else if !line.ends_with(':') {
+        } else {
             code.push(String::from(line.trim()));
         }
     }
