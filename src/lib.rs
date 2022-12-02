@@ -106,6 +106,84 @@ pub fn parse_asm(filepath: &str) -> Result<ParsedAsm, String> {
     Ok((data, code))
 }
 
+/// # produce_machine_code
+/// takes the data and code sections and produces equivlent machine code
+fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'static str> {
+    if data.len() + code.len() > 4096 {
+        return Err("[ERROR] The program exceeds the max size allowed (4096 16-bit words)");
+    }
+
+    let mut machine_code = Vec::with_capacity(1 + data.len() + code.len());
+    let translation_table = HashMap::from([
+        ("and", 0x0),
+        ("add", 0x1),
+        ("lda", 0x2),
+        ("sta", 0x3),
+        ("bun", 0x4),
+        ("bsa", 0x5),
+        ("isz", 0x6),
+        ("cla", 0x7800),
+        ("cle", 0x7400),
+        ("cma", 0x7200),
+        ("cme", 0x7100),
+        ("cir", 0x7080),
+        ("cil", 0x7040),
+        ("inc", 0x7020),
+        ("spa", 0x7010),
+        ("sna", 0x7008),
+        ("sza", 0x7004),
+        ("sze", 0x7002),
+        ("hlt", 0x7001),
+        ("inp", 0xf800),
+        ("out", 0xf400),
+        ("ski", 0xf200),
+        ("sko", 0xf100),
+        ("ion", 0xf080),
+        ("iof", 0xf040)
+    ]);
+
+    let mri = [
+        "add",
+        "and",
+        "lda",
+        "sta",
+        "bun",
+        "bsa",
+        "isz",
+    ];
+
+    machine_code.push(0x4000 | (1 + data.len() as u16));
+
+    machine_code.extend(data.values().cloned());
+
+    for line in code.iter() {
+        let parts: Vec<&str> = line.split(' ').collect();
+        let instruction = 
+            if mri.contains(&parts[0]) {
+
+                let opcode  = translation_table.get(parts[0]).unwrap();
+                let address = data.get(parts[1]).cloned().unwrap_or_else(
+                    || parse_value(parts[1]).unwrap()
+                );
+                let indirect = if parts.len() == 3 
+                                    && parts[2].to_lowercase() == "i" { 1 } else { 0 };
+
+                address | (opcode << 12) | (indirect << 15)
+
+            } else {
+                translation_table.get(parts[0]).cloned().expect(
+                    format!("[ERROR] {} is not a recgonized instruction", parts[0]).as_str()
+                )
+            };
+
+        machine_code.push(instruction);
+
+    }
+
+    Ok(machine_code)
+    
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,6 +214,9 @@ mod tests {
         write("./test.asm", content);
         let (data, code) = parse_asm("./test.asm").unwrap();
 
+        assert_eq!(2, data.len());
+        assert_eq!(4, code.len());
+
         assert_eq!("lda a", code[0]);
         assert_eq!("add b", code[1]);
         assert_eq!("out",   code[2]);
@@ -145,5 +226,33 @@ mod tests {
         assert_eq!(2, *data.get("b").unwrap());
 
         println!("output: {:?}\n{:?}", data, code);
+    }
+
+    #[test]
+    fn test_produce_machine_code() {
+        use std::fs::write;
+        
+        let content = 
+            "data:    \n \
+                a 1   \n \
+                b 2   \n \
+             text:    \n \
+                lda a \n \
+                add b \n \
+                out   \n \
+                hlt";
+
+        write("./test.asm", content);
+        let machine_code = produce_machine_code(parse_asm("./test.asm").unwrap()).unwrap();
+
+        assert_eq!(7, machine_code.len());
+
+        assert_eq!(0x4003, machine_code[0]); // 0000 bun 0003
+        assert_eq!(0x0001, machine_code[1]); // 0001        1
+        assert_eq!(0x0002, machine_code[2]); // 0002        2
+        assert_eq!(0x2001, machine_code[3]); // 0003 lda 0001
+        assert_eq!(0x1002, machine_code[4]); // 0004 add 0002
+        assert_eq!(0xf400, machine_code[5]); // 0005 out
+        assert_eq!(0x7001, machine_code[6]); // 0006 hlt
     }
 }
