@@ -134,7 +134,11 @@ pub fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'stati
     machine_code.extend(constants);
 
     machine_code.extend(code.iter().map(|line| {
-        let parts: Vec<&str> = line.split(' ').map(|v| v.trim()).collect();
+        let parts: Vec<&str> = line
+            .split(' ')
+            .filter(|v| !v.trim().is_empty())
+            .map(|v| v.trim())
+            .collect();
         if mri.contains(&parts[0]) {
             let opcode = translation_table.get(parts[0]).unwrap();
             let address = labels.get(parts[1]).cloned().unwrap_or_else(|| {
