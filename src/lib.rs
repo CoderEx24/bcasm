@@ -38,11 +38,17 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
     let mut addr = 0u16;
     for line in contents
         .to_ascii_lowercase()
-        .trim()
         .lines()
-        .into_iter()
-        .filter(|v| !v.is_empty())
-        .map(|v| v.trim_start().trim_end())
+        .map(|v| {
+            if v.contains(':') {
+                v.split_inclusive(':').collect()
+            } else {
+                vec![v]
+            }
+        })
+        .flatten()
+        .filter(|v| !v.trim().is_empty())
+        .map(|v| v.trim())
     {
         if line.to_ascii_lowercase() == "data:" {
             is_data = true;
@@ -52,14 +58,14 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
             continue;
         } else if line.ends_with(':') {
             let label = line.trim_end_matches(':');
-            data.insert(String::from(label), ((addr + 1) as u16, true));
+            data.insert(String::from(label.trim()), ((addr + 1) as u16, true));
             continue;
         }
 
         if is_data {
             let parts: Vec<&str> = line.split_whitespace().collect();
             let label = parts[0].trim();
-            let value = parse_value(parts[1]).unwrap();
+            let value = parse_value(parts[1].trim()).unwrap();
 
             data.insert(String::from(label), (value, false));
         } else {
@@ -126,7 +132,7 @@ pub fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'stati
     machine_code.extend(constants);
 
     for line in code.iter() {
-        let parts: Vec<&str> = line.split(' ').collect();
+        let parts: Vec<&str> = line.split(' ').map(|v| v.trim()).collect();
         let instruction = if mri.contains(&parts[0]) {
             let opcode = translation_table.get(parts[0]).unwrap();
             let address = labels
