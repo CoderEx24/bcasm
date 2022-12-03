@@ -39,6 +39,8 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
     for line in contents
         .to_ascii_lowercase()
         .lines()
+        .filter(|v| !v.trim().starts_with("//"))
+        .map(|v| v.trim_end_matches("//"))
         .map(|v| {
             if v.contains(':') {
                 v.split_inclusive(':').collect()
