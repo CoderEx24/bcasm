@@ -135,10 +135,11 @@ pub fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'stati
         let parts: Vec<&str> = line.split(' ').map(|v| v.trim()).collect();
         if mri.contains(&parts[0]) {
             let opcode = translation_table.get(parts[0]).unwrap();
-            let address = labels
-                .get(parts[1])
-                .cloned()
-                .unwrap_or_else(|| parse_value(parts[1]).unwrap());
+            let address = labels.get(parts[1]).cloned().unwrap_or_else(|| {
+                parse_value(parts[1]).expect(
+                    format!("[ERROR] {} is undefined and not a valid value", parts[1]).as_str(),
+                )
+            });
             let indirect = if parts.len() == 3 && parts[2].to_lowercase() == "i" {
                 1
             } else {
@@ -152,7 +153,6 @@ pub fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'stati
                 .cloned()
                 .expect(format!("[ERROR] {} is not a recgonized instruction", parts[0]).as_str())
         }
-
     }));
 
     Ok(machine_code)
