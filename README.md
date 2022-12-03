@@ -6,20 +6,20 @@ described in Morris Mano's Computer System Architecture textbook, from its symbo
 ## Assembly File Structure
 The assembly file needs to follow the following template
 ```asm
-" this is a comment
+// this is a comment
 data:
-    a 12  " a label with the value of decimal 12
-    b 012 " a label with the value of octal 12 (decimal 9)
-    c 0xF " a label with the value of hex A (decimal 15)
-    d 'A' " a label with the ASCII value of 'A' (decimal 65)
+    a 12  // a label with the value of decimal 12
+    b 012 // a label with the value of octal 12 (decimal 9)
+    c 0xF // a label with the value of hex A (decimal 15)
+    d 'A' // a label with the ASCII value of 'A' (decimal 65)
 
 text:
-    lda a   " load label a into accumlator
-    add b   " add b to accumlator
-    sta c i " store the value in accumlator into the address in c (i for indirect addressing)
-    lda d   " load d into accumlator
-    out     " output accumlator
-    hlt     " halt
+    lda a   // load label a into accumlator
+    add b   // add b to accumlator
+    sta c i // store the value in accumlator into the address in c (i for indirect addressing)
+    lda d   // load d into accumlator
+    out     // output accumlator
+    hlt     // halt
 ```
 In essence, the assembly file needs to start with a data section, 
 which contains all the constants used in the program.
@@ -34,7 +34,7 @@ The assembler outputs machine code in the following format
 branch to start of program
 --------------------------
 
-        Data Section
+      Data Section
 
 --------------------------
 
