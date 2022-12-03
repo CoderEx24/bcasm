@@ -131,9 +131,9 @@ pub fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'stati
 
     machine_code.extend(constants);
 
-    for line in code.iter() {
+    machine_code.extend(code.iter().map(|line| {
         let parts: Vec<&str> = line.split(' ').map(|v| v.trim()).collect();
-        let instruction = if mri.contains(&parts[0]) {
+        if mri.contains(&parts[0]) {
             let opcode = translation_table.get(parts[0]).unwrap();
             let address = labels
                 .get(parts[1])
@@ -151,10 +151,9 @@ pub fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'stati
                 .get(parts[0])
                 .cloned()
                 .expect(format!("[ERROR] {} is not a recgonized instruction", parts[0]).as_str())
-        };
+        }
 
-        machine_code.push(instruction);
-    }
+    }));
 
     Ok(machine_code)
 }
