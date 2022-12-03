@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-type ParsedAsm = (HashMap<String, u16>, Vec<String>);
+type ParsedAsm = (HashMap<String, (u16, bool)>, Vec<String>);
 
 /// # parse_value
 /// parses a string that contains a numerical value, and returns it as a 2-byte number
@@ -35,14 +35,14 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
     let mut code = Vec::new();
     let mut is_data = true;
 
-    for (i, line) in contents
+    let mut addr = 0u16;
+    for line in contents
         .to_ascii_lowercase()
         .trim()
         .lines()
         .into_iter()
         .filter(|v| !v.is_empty())
         .map(|v| v.trim_start().trim_end())
-        .enumerate()
     {
         if line.to_ascii_lowercase() == "data:" {
             is_data = true;
@@ -52,7 +52,7 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
             continue;
         } else if line.ends_with(':') {
             let label = line.trim_end_matches(':');
-            data.insert(String::from(label), (i + 1) as u16);
+            data.insert(String::from(label), ((addr + 1) as u16, true));
             continue;
         }
 
@@ -61,10 +61,11 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
             let label = parts[0].trim();
             let value = parse_value(parts[1]).unwrap();
 
-            data.insert(String::from(label), value);
+            data.insert(String::from(label), (value, false));
         } else {
             code.push(String::from(line.trim()));
         }
+        addr += 1;
     }
 
     Ok((data, code))
@@ -108,15 +109,27 @@ pub fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'stati
 
     let mri = ["add", "and", "lda", "sta", "bun", "bsa", "isz"];
 
-    machine_code.push(0x4000 | (1 + data.len() as u16));
+    let constants: Vec<u16> = data
+        .iter()
+        .filter(|(_, (_, is_label))| !*is_label)
+        .map(|(_, (v, _))| *v)
+        .collect();
 
-    machine_code.extend(data.values().cloned());
+    let labels: HashMap<String, u16> = data
+        .iter()
+        .enumerate()
+        .map(|(i, (l, (v, b)))| (l.to_owned(), if *b { *v } else { 1 + i as u16 }))
+        .collect();
+
+    machine_code.push(0x4000 | (1 + constants.len() as u16));
+
+    machine_code.extend(constants);
 
     for line in code.iter() {
         let parts: Vec<&str> = line.split(' ').collect();
         let instruction = if mri.contains(&parts[0]) {
             let opcode = translation_table.get(parts[0]).unwrap();
-            let address = data
+            let address = labels
                 .get(parts[1])
                 .cloned()
                 .unwrap_or_else(|| parse_value(parts[1]).unwrap());
@@ -173,15 +186,15 @@ mod tests {
         assert_eq!("out", code[2]);
         assert_eq!("hlt", code[3]);
 
-        assert_eq!(1, *data.get("a").unwrap());
-        assert_eq!(2, *data.get("b").unwrap());
+        assert_eq!((1, false), *data.get("a").unwrap());
+        assert_eq!((2, false), *data.get("b").unwrap());
 
         println!("output: {:?}\n{:?}", data, code);
     }
 
     #[test]
     fn test_produce_machine_code() {
-        let data = HashMap::from([("a".to_string(), 1), ("b".to_string(), 2)]);
+        let data = HashMap::from([("a".to_string(), (1, false)), ("b".to_string(), (2, false))]);
 
         let code = vec![
             "lda a".to_string(),
