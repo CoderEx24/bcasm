@@ -66,8 +66,9 @@ pub fn parse_asm(contents: String) -> Result<ParsedAsm, String> {
 
         if is_data {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            let label = parts[0].trim();
-            let value = parse_value(parts[1].trim()).unwrap();
+            let label = parts[0];
+            let value = parse_value(parts[1])
+                .expect(format!("[ERROR] unparsable value '{}'", parts[1]).as_str());
 
             data.insert(String::from(label), (value, false));
         } else {
@@ -134,11 +135,7 @@ pub fn produce_machine_code((data, code): ParsedAsm) -> Result<Vec<u16>, &'stati
     machine_code.extend(constants);
 
     machine_code.extend(code.iter().map(|line| {
-        let parts: Vec<&str> = line
-            .split(' ')
-            .filter(|v| !v.trim().is_empty())
-            .map(|v| v.trim())
-            .collect();
+        let parts: Vec<&str> = line.split_whitespace().collect();
         if mri.contains(&parts[0]) {
             let opcode = translation_table.get(parts[0]).unwrap();
             let address = labels.get(parts[1]).cloned().unwrap_or_else(|| {
